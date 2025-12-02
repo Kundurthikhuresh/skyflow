@@ -468,8 +468,18 @@ const CurrentWeather: React.FC<CurrentWeatherProps> = ({ data, unit }) => {
         />
 
         <div className="relative z-10 flex flex-col items-center text-center">
-          <div className="flex items-center space-x-2 mb-6 opacity-90 bg-white/10 px-4 py-1.5 rounded-full backdrop-blur-sm shadow-sm border border-white/10">
-             <span className="text-xs font-semibold tracking-wide uppercase">{location}</span>
+          <div className="flex flex-col items-center space-y-1 mb-6">
+            <div className="flex items-center space-x-2 opacity-90 bg-white/10 px-4 py-1.5 rounded-full backdrop-blur-sm shadow-sm border border-white/10">
+               <span className="text-xs font-semibold tracking-wide uppercase">{location}</span>
+            </div>
+            {/* Show city's local time */}
+            <div className="text-white/70 text-xs font-medium">
+              🕐 Local Time: {new Date().toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                timeZone: data.timezone || undefined
+              })}
+            </div>
           </div>
           
           <div className="my-2 drop-shadow-2xl filter hover:scale-105 transition-transform duration-300">

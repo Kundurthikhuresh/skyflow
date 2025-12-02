@@ -15,21 +15,41 @@ interface DashboardViewProps {
 }
 
 const DashboardView: React.FC<DashboardViewProps> = ({ weatherState, currentTime, theme, onToggleTheme, unit }) => {
-  // Use local time instead of location timezone for better user experience
+  // Get the city's timezone from weather data
+  const cityTimezone = weatherState.data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  // Format time in the CITY'S timezone (not user's local time)
   const formattedTime = currentTime.toLocaleTimeString('en-US', { 
     hour: '2-digit', 
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: cityTimezone
   });
   
   const formattedDate = currentTime.toLocaleDateString('en-US', { 
     weekday: 'long', 
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: cityTimezone
   });
 
+  // Get the hour in the city's timezone for greeting
+  const getCityHour = (): number => {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        hour12: false,
+        timeZone: cityTimezone,
+      }).formatToParts(currentTime);
+      const hourPart = parts.find((p) => p.type === 'hour');
+      return hourPart ? parseInt(hourPart.value, 10) : currentTime.getHours();
+    } catch {
+      return currentTime.getHours();
+    }
+  };
+
   const getGreeting = () => {
-    const hours = currentTime.getHours();
+    const hours = getCityHour();
 
     if (hours >= 5 && hours < 12) return { text: 'Good Morning', icon: <Sunrise className="text-amber-500" size={28} />, isNight: false };
     if (hours >= 12 && hours < 17) return { text: 'Good Afternoon', icon: <Sun className="text-orange-500" size={28} />, isNight: false };
@@ -40,8 +60,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ weatherState, currentTime
   const greeting = getGreeting();
   const currentCondition = weatherState.data?.current.icon;
   
-  const hour = currentTime.getHours();
-  const isTimeForDark = hour >= 18 || hour < 5;
+  // Use city's hour for dark theme calculation
+  const cityHour = getCityHour();
+  const isTimeForDark = cityHour >= 18 || cityHour < 5;
   const isDarkTheme = theme === 'dark' || (theme === 'system' && isTimeForDark);
   const showNightEffects = isDarkTheme; 
 
