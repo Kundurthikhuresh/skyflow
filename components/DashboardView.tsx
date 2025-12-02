@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SearchState, Theme, Unit } from '../types';
 import ForecastList from './ForecastList';
 import Highlights from './Highlights';
@@ -15,45 +15,76 @@ interface DashboardViewProps {
 }
 
 const DashboardView: React.FC<DashboardViewProps> = ({ weatherState, currentTime, theme, onToggleTheme, unit }) => {
-  // Get the city's timezone from weather data
-  const cityTimezone = weatherState.data?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Get the city's timezone from weather data - ensure it's a valid IANA timezone
+  const rawTimezone = weatherState.data?.timezone;
   
-  // Format time in the CITY'S timezone (not user's local time)
-  const formattedTime = currentTime.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    timeZone: cityTimezone
-  });
+  // Validate timezone is a proper IANA format (contains '/') and is not 'auto'
+  const isValidTimezone = rawTimezone && rawTimezone.includes('/') && rawTimezone !== 'auto';
+  const cityTimezone = isValidTimezone ? rawTimezone : undefined;
   
-  const formattedDate = currentTime.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric',
-    timeZone: cityTimezone
-  });
-
-  // Get the hour in the city's timezone for greeting
-  const getCityHour = (): number => {
+  // Debug timezone
+  console.log('Weather data timezone:', rawTimezone, '| Valid:', isValidTimezone, '| Using:', cityTimezone || 'local');
+  
+  // Calculate city time using useMemo for performance
+  const { formattedTime, formattedDate, cityHour } = useMemo(() => {
+    const now = new Date();
+    
     try {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        hour12: false,
-        timeZone: cityTimezone,
-      }).formatToParts(currentTime);
-      const hourPart = parts.find((p) => p.type === 'hour');
-      return hourPart ? parseInt(hourPart.value, 10) : currentTime.getHours();
-    } catch {
-      return currentTime.getHours();
+      const timeOptions: Intl.DateTimeFormatOptions = { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+      };
+      
+      const dateOptions: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric'
+      };
+      
+      if (cityTimezone) {
+        timeOptions.timeZone = cityTimezone;
+        dateOptions.timeZone = cityTimezone;
+      }
+      
+      const time = now.toLocaleTimeString('en-US', timeOptions);
+      const date = now.toLocaleDateString('en-US', dateOptions);
+      
+      // Get hour for greeting
+      let hour = now.getHours();
+      if (cityTimezone) {
+        try {
+          const hourFormatter = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            hour12: false,
+            timeZone: cityTimezone,
+          });
+          const parts = hourFormatter.formatToParts(now);
+          const hourPart = parts.find((p) => p.type === 'hour');
+          if (hourPart) {
+            hour = parseInt(hourPart.value, 10);
+          }
+        } catch (e) {
+          console.warn('Hour parsing error:', e);
+        }
+      }
+      
+      return { formattedTime: time, formattedDate: date, cityHour: hour };
+    } catch (e) {
+      console.error('Timezone formatting error:', e);
+      return { 
+        formattedTime: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }), 
+        formattedDate: now.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        cityHour: now.getHours()
+      };
     }
-  };
+  }, [cityTimezone, currentTime]);
 
   const getGreeting = () => {
-    const hours = getCityHour();
-
-    if (hours >= 5 && hours < 12) return { text: 'Good Morning', icon: <Sunrise className="text-amber-500" size={28} />, isNight: false };
-    if (hours >= 12 && hours < 17) return { text: 'Good Afternoon', icon: <Sun className="text-orange-500" size={28} />, isNight: false };
-    if (hours >= 17 && hours < 21) return { text: 'Good Evening', icon: <Sunset className="text-indigo-500" size={28} />, isNight: false };
+    if (cityHour >= 5 && cityHour < 12) return { text: 'Good Morning', icon: <Sunrise className="text-amber-500" size={28} />, isNight: false };
+    if (cityHour >= 12 && cityHour < 17) return { text: 'Good Afternoon', icon: <Sun className="text-orange-500" size={28} />, isNight: false };
+    if (cityHour >= 17 && cityHour < 21) return { text: 'Good Evening', icon: <Sunset className="text-indigo-500" size={28} />, isNight: false };
     return { text: 'Good Night', icon: <Moon className="text-blue-900 dark:text-blue-300" size={28} />, isNight: true };
   };
 
@@ -61,7 +92,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ weatherState, currentTime
   const currentCondition = weatherState.data?.current.icon;
   
   // Use city's hour for dark theme calculation
-  const cityHour = getCityHour();
   const isTimeForDark = cityHour >= 18 || cityHour < 5;
   const isDarkTheme = theme === 'dark' || (theme === 'system' && isTimeForDark);
   const showNightEffects = isDarkTheme; 
@@ -77,9 +107,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ weatherState, currentTime
                 <h1 className="text-4xl md:text-5xl font-bold text-blue-900 dark:text-blue-100 mb-2">
                   {weatherState.loading && !weatherState.data ? '--:--' : formattedTime}
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400 font-medium mb-6">
+                <p className="text-gray-500 dark:text-gray-400 font-medium mb-1">
                   {weatherState.loading && !weatherState.data ? 'Loading...' : formattedDate}
                 </p>
+                {cityTimezone && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+                    🌍 Timezone: {cityTimezone.replace('_', ' ')}
+                  </p>
+                )}
               </div>
               
               <div className="flex items-center gap-4">

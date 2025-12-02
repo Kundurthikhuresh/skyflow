@@ -474,11 +474,21 @@ const CurrentWeather: React.FC<CurrentWeatherProps> = ({ data, unit }) => {
             </div>
             {/* Show city's local time */}
             <div className="text-white/70 text-xs font-medium">
-              🕐 Local Time: {new Date().toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                timeZone: data.timezone || undefined
-              })}
+              🕐 Local Time: {(() => {
+                try {
+                  const tz = data.timezone && data.timezone.includes('/') && data.timezone !== 'auto' 
+                    ? data.timezone 
+                    : undefined;
+                  return new Date().toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true,
+                    timeZone: tz
+                  });
+                } catch {
+                  return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                }
+              })()}
             </div>
           </div>
           
