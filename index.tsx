@@ -2,7 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
+console.log('App starting...');
+
 const rootElement = document.getElementById('root');
+console.log('Root element:', rootElement);
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }

@@ -67,13 +67,38 @@ const App: React.FC = () => {
   }, [weatherState.query]);
 
   useEffect(() => {
+    // Check for saved default city first
+    const savedDefaultCity = localStorage.getItem('climatix_default_city');
+    const useLocation = localStorage.getItem('climatix_use_location');
+    
+    // If user has set a default city and doesn't want to use location
+    if (savedDefaultCity && useLocation === 'false') {
+      handleSearch(savedDefaultCity);
+      return;
+    }
+    
+    // Otherwise try to use geolocation
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => handleSearch(`${position.coords.latitude}, ${position.coords.longitude}`),
-        () => handleSearch('Dhaka'),
+        () => {
+          // If geolocation fails, use saved city or default
+          if (savedDefaultCity) {
+            handleSearch(savedDefaultCity);
+          } else {
+            handleSearch('New York'); // Default fallback city
+          }
+        },
         { timeout: 10000, maximumAge: 60000 }
       );
-    } else handleSearch('Dhaka');
+    } else {
+      // No geolocation support
+      if (savedDefaultCity) {
+        handleSearch(savedDefaultCity);
+      } else {
+        handleSearch('New York');
+      }
+    }
   }, []);
 
   useEffect(() => {

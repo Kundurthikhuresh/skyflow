@@ -15,38 +15,21 @@ interface DashboardViewProps {
 }
 
 const DashboardView: React.FC<DashboardViewProps> = ({ weatherState, currentTime, theme, onToggleTheme, unit }) => {
-  const timeZone = weatherState.data?.timezone;
-
+  // Use local time instead of location timezone for better user experience
   const formattedTime = currentTime.toLocaleTimeString('en-US', { 
     hour: '2-digit', 
-    minute: '2-digit',
-    timeZone: timeZone
+    minute: '2-digit'
   });
   
   const formattedDate = currentTime.toLocaleDateString('en-US', { 
     weekday: 'long', 
     day: 'numeric', 
     month: 'long', 
-    year: 'numeric',
-    timeZone: timeZone
+    year: 'numeric'
   });
 
   const getGreeting = () => {
-    let hours = currentTime.getHours();
-    
-    if (timeZone) {
-      try {
-        const parts = new Intl.DateTimeFormat('en-US', {
-          hour: 'numeric',
-          hour12: false,
-          timeZone: timeZone,
-        }).formatToParts(currentTime);
-        const hourPart = parts.find((p) => p.type === 'hour');
-        if (hourPart) hours = parseInt(hourPart.value, 10);
-      } catch (e) {
-        console.warn("Invalid timezone, falling back to local time");
-      }
-    }
+    const hours = currentTime.getHours();
 
     if (hours >= 5 && hours < 12) return { text: 'Good Morning', icon: <Sunrise className="text-amber-500" size={28} />, isNight: false };
     if (hours >= 12 && hours < 17) return { text: 'Good Afternoon', icon: <Sun className="text-orange-500" size={28} />, isNight: false };
